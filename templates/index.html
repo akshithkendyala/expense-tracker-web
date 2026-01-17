@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="background">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-wallet"></i> Expense Reports</h1>
+            <p>Generate professional monthly reports</p>
+        </header>
+
+        <section class="glass-panel input-section">
+            <div class="period-selector">
+                <div class="form-group">
+                    <label>Month</label>
+                    <div class="select-wrapper">
+                        <select id="month">
+                            <option value="January">January</option>
+                            <option value="February">February</option>
+                            <option value="March">March</option>
+                            <option value="April">April</option>
+                            <option value="May">May</option>
+                            <option value="June">June</option>
+                            <option value="July">July</option>
+                            <option value="August">August</option>
+                            <option value="September">September</option>
+                            <option value="October">October</option>
+                            <option value="November">November</option>
+                            <option value="December">December</option>
+                        </select>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Year</label>
+                    <div class="select-wrapper">
+                        <select id="year"></select>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="add-expense-form">
+                <h3>Add New Expense</h3>
+                <div class="grid-form">
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="date">
+                    </div>
+                    <div class="form-group span-2">
+                        <label>Item Name</label>
+                        <input type="text" id="name" placeholder="e.g. Netflix Subscription">
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <input type="text" id="category" placeholder="e.g. Entertainment">
+                    </div>
+                    <div class="form-group">
+                        <label>Amount</label>
+                        <div class="amount-wrapper">
+                            <span>$</span>
+                            <input type="number" id="price" placeholder="0.00" step="0.01">
+                        </div>
+                    </div>
+                </div>
+                <button onclick="addExpense()" class="btn-primary">
+                    <i class="fas fa-plus"></i> Add Item
+                </button>
+            </div>
+        </section>
+
+        <section class="glass-panel list-section">
+            <div class="list-header">
+                <h3>Current Items <span id="item-count" class="badge">0</span></h3>
+                <h3 class="total">Total: <span id="total-amount">0.00</span></h3>
+            </div>
+            
+            <div class="table-container">
+                <table id="expense-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="expense-list">
+                        <!-- Items will appear here -->
+                    </tbody>
+                </table>
+                <div id="empty-state" class="empty-state">
+                    <i class="fas fa-receipt"></i>
+                    <p>No items added yet</p>
+                </div>
+            </div>
+
+            <button onclick="generatePDF()" id="generate-btn" class="btn-success disabled">
+                <i class="fas fa-file-pdf"></i> Download PDF Report
+            </button>
+        </section>
+    </div>
+
+    <script>
+        // Init
+        const yearSelect = document.getElementById('year');
+        const currentYear = new Date().getFullYear();
+        for(let i = 2023; i <= 2035; i++) {
+            let opt = document.createElement('option');
+            opt.value = i;
+            opt.innerHTML = i;
+            if(i === currentYear) opt.selected = true;
+            yearSelect.appendChild(opt);
+        }
+
+        document.getElementById('date').valueAsDate = new Date(); // Set today
+        document.getElementById('month').selectedIndex = new Date().getMonth();
+
+        // State
+        let expenses = [];
+
+        function addExpense() {
+            const dateInput = document.getElementById('date');
+            const name = document.getElementById('name').value;
+            const category = document.getElementById('category').value;
+            const price = document.getElementById('price').value;
+            
+            // Format Date for Display (DD/MM/YYYY)
+            const dateObj = new Date(dateInput.value);
+            const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth()+1).padStart(2, '0')}/${dateObj.getFullYear()}`;
+
+            if (!dateInput.value || !name || !price) {
+                alert("Please fill in Date, Name and Price!");
+                return;
+            }
+
+            const expense = {
+                id: Date.now(),
+                date: dateStr,
+                name: name,
+                category: category,
+                price: parseFloat(price)
+            };
+
+            expenses.push(expense);
+            renderList();
+            
+            // Clear inputs
+            document.getElementById('name').value = '';
+            document.getElementById('price').value = '';
+            document.getElementById('name').focus();
+        }
+
+        function removeExpense(id) {
+            expenses = expenses.filter(e => e.id !== id);
+            renderList();
+        }
+
+        function renderList() {
+            const list = document.getElementById('expense-list');
+            const empty = document.getElementById('empty-state');
+            const btn = document.getElementById('generate-btn');
+            const count = document.getElementById('item-count');
+            const total = document.getElementById('total-amount');
+
+            list.innerHTML = '';
+            let totalVal = 0;
+
+            if (expenses.length === 0) {
+                empty.style.display = 'flex';
+                btn.classList.add('disabled');
+            } else {
+                empty.style.display = 'none';
+                btn.classList.remove('disabled');
+                
+                expenses.forEach(e => {
+                    totalVal += e.price;
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${e.date}</td>
+                        <td class="name-cell">${e.name}</td>
+                        <td><span class="tag">${e.category || 'General'}</span></td>
+                        <td class="amount">${e.price.toFixed(2)}</td>
+                        <td><button onclick="removeExpense(${e.id})" class="btn-icon"><i class="fas fa-trash"></i></button></td>
+                    `;
+                    list.appendChild(row);
+                });
+            }
+            
+            count.innerText = expenses.length;
+            total.innerText = totalVal.toFixed(2);
+        }
+
+        async function generatePDF() {
+            if (expenses.length === 0) return;
+
+            const month = document.getElementById('month').value;
+            const year = document.getElementById('year').value;
+            const btn = document.getElementById('generate-btn');
+
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+            
+            try {
+                const response = await fetch('/generate_pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ month, year, expenses })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${month}_${year}_Expenses_Report.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                } else {
+                    alert("Failed to generate PDF");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error generating PDF");
+            }
+
+            btn.innerHTML = '<i class="fas fa-file-pdf"></i> Download PDF Report';
+        }
+    </script>
+</body>
+</html>
