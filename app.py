@@ -57,7 +57,7 @@ def generate_pdf():
         elements.append(Paragraph(f"Year: {year} | Generated On: {datetime.now().strftime('%d-%m-%Y')}", subtitle_style))
 
         # Table Data
-        table_data = [["Date", "Description", "Category", "Amount"]]
+        table_data = [["Date", "Description", "Category", "Amount (Rs.)"]]
         total_amount = 0
 
         for item in expenses:
